@@ -1,0 +1,13 @@
+# meal_rec_app/requirements.txt  (add anything you’re missing)
+fastapi
+uvicorn[standard]
+sqlalchemy>=2.0
+asyncpg
+cloud-sql-python-connector[asyncpg]>=1.4.0
+pydantic>=2.7
+pydantic-settings
+pandas
+numpy
+scikit-learn
+google-genai            # <-- gemini client
+python-dotenv           # local dev convenience

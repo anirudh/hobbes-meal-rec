@@ -1,0 +1,59 @@
+# --------------------------------------------------------------------
+# Cloud Build pipeline: build Docker image ⇒ push ⇒ deploy to Cloud Run
+# Trigger on every push to main (or manually via gcloud builds submit).
+# --------------------------------------------------------------------
+options:
+  substitutionOption: ALLOW_LOOSE   # let us supply extra _VARS at trigger time
+
+# ─── Customisable parameters (change to match your project) ──────────
+substitutions:
+  _SERVICE: "meal-rec-app"                                      # Cloud Run service name
+  _REGION:  "us-central1"                                       # Cloud Run region
+  _SA:      "meal-run-sa@hobbes-meal-rec.iam.gserviceaccount.com" # service-account email
+  _INSTANCE: "hobbes-meal-rec:us-central1:hobbes-users-db"      # Cloud SQL connection
+  _MEM:     "1Gi"                                               # container memory
+  _PORT:    "8080"                                              # container port
+
+# ─── Build & deploy steps ────────────────────────────────────────────
+steps:
+# 1. Build the image (tagged with commit SHA)
+- name: "gcr.io/cloud-builders/docker"
+  args:
+    - build
+    - "-t"
+    - "gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA"
+    - "."
+
+# 2. Push it to Artifact Registry / GCR
+- name: "gcr.io/cloud-builders/docker"
+  args:
+    - push
+    - "gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA"
+
+# 3. Deploy the new image to Cloud Run
+- name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+  entrypoint: "gcloud"
+  args:
+    [
+      "run","deploy","${_SERVICE}",
+      "--region=${_REGION}",
+      "--image=gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA",
+      "--platform=managed",
+      "--allow-unauthenticated",
+      "--service-account=${_SA}",
+      "--port=${_PORT}",
+      "--memory=${_MEM}",
+      "--add-cloudsql-instances=${_INSTANCE}"
+      # no --update-env-vars: keeps existing prod env / secrets unchanged
+    ]
+
+# 4. describe rollout in log
+- name: "bash"
+  entrypoint: "bash"
+  args:
+    - "-c"
+    - |
+      echo " Deployed revision with image gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA"
+
+images:
+- "gcr.io/$PROJECT_ID/${_SERVICE}:$SHORT_SHA"

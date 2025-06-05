@@ -1,0 +1,10 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.sqlite
+*.db
+*.env           # never ship local secrets
+.git
+tests
+.vscode
